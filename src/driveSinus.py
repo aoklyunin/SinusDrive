@@ -4,6 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
+
 def getLst(lst, coeffs):
     newLst = []
     for i in range(len(lst)):
@@ -33,18 +34,24 @@ def wrtePlot(t, sinusLst, newSinusLst, path, caption):
 def findSinusCoeffs(lst):
     prevL = lst[0]
 
+    amp0 = max(lst)
+
     flgDrop = False
     zerosLst = []
+    findedZero = -1
+
     for i in range(len(lst)):
         if (abs(lst[i]) < 0.05):
             if not flgDrop:
-                zerosLst.append(i)
+                findedZero = i
                 flgDrop = True
-        else:
+        if (abs(amp0-abs(lst[i]))<0.2):
             flgDrop = False
+            if findedZero!=-1:
+                zerosLst.append(int((i+findedZero)/2))
+                findedZero = -1
 
-    # find phi0
-    phi0 = zerosLst[0] - np.pi / 2
+
 
     periodsLst = []
     for i in range(len(zerosLst) - 1):
@@ -56,7 +63,14 @@ def findSinusCoeffs(lst):
         periodSum += period
 
     meanPeriod = periodSum / len(periodsLst)
+
+
     omega0 = 1 / meanPeriod
+
+    # find phi0
+    print(zerosLst[0]/ meanPeriod*np.pi)
+    #phi0 = zerosLst[0]/ meanPeriod*np.pi
+    phi0 = zerosLst[0]+np.pi/2
 
     amps = []
 
@@ -67,23 +81,21 @@ def findSinusCoeffs(lst):
 
     meanAmps = []
 
-
-
     for l in lst:
         if (l > 0 and amp0 - l < 0.2):
             state = "positive"
-           # print("make pos")
+            # print("make pos")
             break
         if (l < 0 and -amp0 - l > -0.2):
             state = "negative"
-           # print("make neg")
+            # print("make neg")
             break
 
     for l in lst:
         if (l > 0 and amp0 - l < 0.2):
             if state == "negative" and len(amps) > 0:
                 meanAmps.append(np.mean(amps))
-              #  print("loop mean ", np.mean(amps))
+                #  print("loop mean ", np.mean(amps))
                 amps.clear()
             if l > prevL:
                 flgAddAmp = True
@@ -96,10 +108,10 @@ def findSinusCoeffs(lst):
         if (l < 0 and -amp0 - l > -0.2):
             if state == "positive" and len(amps) > 0:
                 meanAmps.append(np.mean(amps))
-             #   print("loop mean ", np.mean(amps))
+                #   print("loop mean ", np.mean(amps))
                 amps.clear()
 
-          #  print("negative")
+            #  print("negative")
             if l < prevL:
                 flgAddAmp = True
             else:
@@ -116,8 +128,6 @@ def findSinusCoeffs(lst):
     amp0 = np.mean(meanAmps)
     # find frequency
     print("mamp ", amp0)
-
-
 
     return [amp0, omega0, phi0]
 
@@ -167,12 +177,37 @@ def getMeanAmp(sourse):
     return [t, sinusLst, newSinusLst]
 
 
+def getSQD(sourse, start, end):
+    sinusLst = readLstFromFile(sourse)[start:end]
+    # sinusLst = sinusLst[:10000]
+
+    coeffs = findSinusCoeffs(sinusLst)
+    # newSinusLst = getLst(lst, coeffs)
+    newSinusLst = preciseFind(sinusLst, coeffs)
+
+    t = np.arange(start, end)
+
+    return [t, sinusLst, newSinusLst]
+
+
+def getMeanAmp(sourse, start, end):
+    sinusLst = readLstFromFile(sourse)[start:end]
+    # sinusLst = sinusLst[:10000]
+
+    coeffs = findSinusCoeffs(sinusLst)
+    newSinusLst = getLst(sinusLst, coeffs)
+
+    t = np.arange(start, end)
+
+    return [t, sinusLst, newSinusLst]
+
+
 def preciseFind(lst, coeffs):
     preciseCoeffs = []
     minDist = -1
     for amp in np.arange(coeffs[0] * 0.8, coeffs[0] * 1.2, coeffs[0] * 0.05):
         # print("loop amp: ",amp)
-        for omega in np.arange(coeffs[1] * 0.8, coeffs[1] * 1.2, coeffs[1] * 0.05):
+        for omega in np.arange(coeffs[1] * 0.8, coeffs[1] * 1.4, coeffs[1] * 0.05):
             for phi in np.arange(coeffs[2] - np.pi / 40, coeffs[2] + np.pi / 40, np.pi / 80):
                 newCoeffs = [amp, omega, phi]
 
@@ -191,4 +226,3 @@ def preciseFind(lst, coeffs):
 
     print("preciseCoeffs: ", preciseCoeffs)
     return getLst(lst, preciseCoeffs)
-
